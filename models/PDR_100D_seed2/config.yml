@@ -1,0 +1,37 @@
+name: PDR_100D_seed2
+model_dir: ./models
+seed: 2
+load_ckpt: null
+load_optim: false
+eqn_name: PricingDefaultRisk
+dim: 100
+total_time: 1.0
+num_time_interval: 40
+y_init_range:
+- 50
+- 60
+hidden_layers:
+- 20
+- 20
+lr: 0.01
+eta_min: 1.0e-06
+num_iterations: 3000
+batch_size: 64
+valid_size: 256
+logging_frequency: 1
+dtype: float64
+verbose: true
+grid: 5
+k: 3
+eps: 0.02
+use_agu: true
+agu_freq: 500
+agu_warmup: 500
+agu_endup: 3000
+agu_ratio: 0.2
+loss_window_size: 10
+width:
+- 100
+- 20
+- 20
+- 100
