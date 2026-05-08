@@ -90,10 +90,8 @@ def evaluate_model():
     checkpoint = torch.load(cmd_args.model_path, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
     
-    #model.train()
     model.eval()
     
-    ref = bsde.y_init if not isinstance(bsde.y_init, torch.Tensor) else bsde.y_init.item()
     # ---------------------------------------------------
     # 下面是评估逻辑 (与之前相同，直接粘贴即可)
     # ---------------------------------------------------
@@ -102,17 +100,9 @@ def evaluate_model():
         inputs = (dw, x)
         y_terminal_pred = model(inputs)
         y_terminal_true = bsde.g_torch(bsde.total_time, x[:, :, -1])
-    
+
     y_pred_np = y_terminal_pred.cpu().numpy().flatten()
     y_true_np = y_terminal_true.cpu().numpy().flatten()
-    
-    # --- 新增：计算相对误差 ---
-    # 添加一个极小值 epsilon 防止除以零
-    epsilon = 1e-10
-    relative_error = np.abs(y_pred_np - y_true_np) / (np.abs(y_true_np) + epsilon)
-
-    y0_pred = model.y_init.item()
-    y0_rel_error = abs(y0_pred - ref) / abs(ref)
     
     print("\n" + "="*40)
     print("      STATISTICAL DIAGNOSIS      ")
@@ -122,39 +112,29 @@ def evaluate_model():
     print(f"{'Mean':<10} | {np.mean(y_pred_np):.4f}{'':<12} | {np.mean(y_true_np):.4f}")
     print(f"{'Std':<10} | {np.std(y_pred_np):.4f}{'':<12} | {np.std(y_true_np):.4f}")
     print("-" * 52)
-    # 打印相对误差的统计信息
-    print(f"Max Rel Error:  {np.max(relative_error):.4%}")
-    print(f"Mean Rel Error: {np.mean(relative_error):.4%}")
-    print(f"Y0 (Theta): {y0_pred:.4f}")
-    print(f"Y0 Rel Error: {y0_rel_error:.4%}")
+    print(f"Y0 (Theta): {model.y_init.item():.4f}")
     
-    # --- 修改后的画图部分 ---
-    plt.figure(figsize=(12, 5))
-    
-    # 子图 1: 相对误差分布 (Relative Error Distribution)
-    # 使用半对数坐标或限制范围可能更好，如果有个别极端离群值
-    plt.subplot(1, 2, 1)
-    plt.hist(relative_error, bins=50, color='royalblue', alpha=0.7, density=True)
-    plt.title(f"{args.eqn_name}: Relative Error Distribution")
-    plt.xlabel("Relative Error ($|y_{pred} - y_{true}| / |y_{true}|$)")
-    plt.ylabel("Density")
-    plt.grid(True, linestyle='--', alpha=0.5)
-    
-    # (可选) 如果误差极小，x轴可以用百分比显示，或者在 title 标注
-    # plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.1%}'.format(x)))
+    # 画图部分
 
-    # 子图 2: 真实值与预测值的分布对比 (保持不变，用于观察整体分布偏移)
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.scatter(y_true_np, y_pred_np, alpha=0.5, s=2)
+    lims = [np.min([plt.xlim(), plt.ylim()]), np.max([plt.xlim(), plt.ylim()])]
+    plt.plot(lims, lims, 'r-', alpha=0.75)
+    plt.title(f"{args.eqn_name}: Pred vs True")
+    plt.xlabel("True Terminal Value")
+    plt.ylabel("Model Predicted")
+    
     plt.subplot(1, 2, 2)
-    plt.hist(y_true_np, bins=50, alpha=0.5, label='True', density=True, color='green')
-    plt.hist(y_pred_np, bins=50, alpha=0.5, label='Pred', density=True, color='red')
+    plt.hist(y_true_np, bins=50, alpha=0.5, label='True', density=True)
+    plt.hist(y_pred_np, bins=50, alpha=0.5, label='Pred', density=True)
     plt.legend()
-    plt.title("Value Distribution (True vs Pred)")
-    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.title("Distribution")
     
     plt.tight_layout()
     
     plt.savefig(fig_path)
-    print(f"Saved eval_result.png to {fig_path}")
+    print("Saved eval_result.png")
 
 if __name__ == "__main__":
     evaluate_model()
